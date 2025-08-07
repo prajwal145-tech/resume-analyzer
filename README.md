@@ -234,7 +234,3 @@ Flask for the web framework
 Community contributors for feedback and improvements
 
 ⭐ Star this repository if you find it helpful!
-GitHub will auto-generate URLs you can use in your README
-
-⭐ Star this repository if you find it helpful!
-
