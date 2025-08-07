@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Resume Analyzer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+        }
+
+        h2 {
+            margin-top: 40px;
+        }
+
+        .keyword-box {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+
+        .keyword-grid {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .result-table {
+            margin-top: 30px;
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .result-table th, .result-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        .result-table th {
+            background-color: #f2f2f2;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Resume Analyzer</h1>
+
+    <!-- 1. Upload JD -->
+    <div class="section">
+        <h2>1. Upload Job Description (JD)</h2>
+        <form action="/" method="post" enctype="multipart/form-data">
+            <input type="file" name="jd_file" accept=".pdf,.doc,.docx,.txt" required>
+            <input type="hidden" name="action" value="upload_jd">
+            <button type="submit">Extract Keywords</button>
+        </form>
+        {% if jd_filename %}
+            <p><strong>Uploaded JD:</strong> {{ jd_filename }}</p>
+        {% endif %}
+    </div>
+
+    <!-- 2. Select / Search / Add Keywords -->
+    <div class="section">
+        <h2>2. Select Keywords</h2>
+        {% if extracted_keywords %}
+            <form action="/" method="post">
+                <input type="text" name="search" placeholder="Search keyword...">
+                <br><br>
+                <div class="keyword-grid">
+                    {% for keyword in extracted_keywords %}
+                        <label class="keyword-box">
+                            <input type="checkbox" name="selected_keywords" value="{{ keyword }}"
+                            {% if selected_keywords and keyword in selected_keywords %} checked {% endif %}>
+                            {{ keyword }}
+                        </label>
+                    {% endfor %}
+                </div>
+                <br>
+                <label for="manual_keywords"><strong>Manually Add Keywords (comma-separated):</strong></label><br>
+                <input type="text" name="manual_keywords" style="width: 400px;">
+                <br><br>
+                <input type="hidden" name="action" value="submit_keywords">
+                <button type="submit">Submit Keywords</button>
+            </form>
+        {% else %}
+            <p>Upload JD file first to extract keywords.</p>
+        {% endif %}
+    </div>
+
+    <!-- 3. Upload Resumes -->
+    <div class="section">
+        <h2>3. Upload Resumes</h2>
+        <form action="/" method="post" enctype="multipart/form-data">
+            <input type="file" name="resumes" multiple required accept=".pdf,.doc,.docx,.txt">
+            <br><br>
+            <label for="top_n"><strong>Enter Top N resumes to highlight in output:</strong></label>
+            <input type="number" name="top_n" min="1" required>
+            <br><br>
+            <input type="hidden" name="action" value="analyze">
+            <button type="submit">Analyze Resumes</button>
+        </form>
+        {% if uploaded_resumes %}
+            <p><strong>Uploaded Resumes:</strong> {{ uploaded_resumes|length }} files</p>
+        {% endif %}
+    </div>
+
+    <!-- 4. Analysis Results -->
+    {% if results_table %}
+        <div class="section">
+            <h2>4. Analysis Results</h2>
+            {{ results_table|safe }}
+        </div>
+    {% endif %}
+
+    <!-- 5. Download Excel -->
+    {% if excel_download %}
+        <div class="section">
+            <h2>5. Download Report</h2>
+            <a href="{{ excel_download }}" download>Download Analysis Excel</a>
+        </div>
+    {% endif %}
+</body>
+</html>
