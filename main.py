@@ -49,12 +49,14 @@ def extract_keywords_from_jd(jd_text, top_n=50):
     return [kw for kw, freq in sorted_keywords[:top_n]]
 
 
-def analyze_resumes(jd_text, resume_paths, selected_keywords, top_n):
+def analyze_resumes(jd_path, resume_paths, selected_keywords, top_n):
     # Remove previous result file if exists
     result_path = os.path.join('uploads', 'Analysis_Result.xlsx')
     if os.path.exists(result_path):
         os.remove(result_path)
 
+    # Extract JD text from file path
+    jd_text = extract_text_from_file(jd_path)
     jd_vector = model.encode([jd_text])[0]
     results = []
 
@@ -82,7 +84,10 @@ def analyze_resumes(jd_text, resume_paths, selected_keywords, top_n):
 
     df.to_excel(result_path, index=False)
     format_excel_file(result_path, top_n)
-    return df, result_path
+    
+    # Return top N results as list of dictionaries
+    top_results = df.head(top_n).to_dict('records')
+    return result_path, top_results
 
 
 def format_excel_file(file_path, top_n):

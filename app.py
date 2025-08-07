@@ -1,95 +1,74 @@
 import os
-from flask import Flask, render_template, request, send_from_directory, session
+from flask import Flask, render_template, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 from main import extract_text_from_file, extract_keywords_from_jd, analyze_resumes
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+jd_filename = ""
+keywords_selected = []
 
-def cleanup_uploads():
-    for filename in os.listdir(UPLOAD_FOLDER):
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
-        if os.path.isfile(file_path):
-            os.remove(file_path)
-
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/')
 def index():
-    results_table = None
-    excel_download = None
+    return render_template('index.html')
 
-    if request.method == 'POST':
-        action = request.form.get('action')
+@app.route('/upload_jd', methods=['POST'])
+def upload_jd():
+    global jd_filename
+    jd_file = request.files['jd_file']
+    jd_filename = secure_filename(jd_file.filename)
+    jd_path = os.path.join(app.config['UPLOAD_FOLDER'], jd_filename)
+    jd_file.save(jd_path)
 
-        # STEP 1: Upload JD
-        if action == 'upload_jd':
-            cleanup_uploads()
-            jd_file = request.files.get('jd_file')
-            if jd_file:
-                jd_filename = secure_filename(jd_file.filename)
-                jd_path = os.path.join(UPLOAD_FOLDER, jd_filename)
-                jd_file.save(jd_path)
+    jd_text = extract_text_from_file(jd_path)
+    keywords = extract_keywords_from_jd(jd_text)
+    return jsonify({'filename': jd_filename, 'keywords': sorted(keywords)})
 
-                jd_text = extract_text_from_file(jd_path)
-                keywords = extract_keywords_from_jd(jd_text)
+@app.route('/submit_keywords', methods=['POST'])
+def submit_keywords():
+    global keywords_selected
+    keywords_selected = request.json.get('keywords', [])
+    return jsonify({'message': 'Keywords received', 'keywords': keywords_selected})
 
-                # Reset session with fresh JD context
-                session.clear()
-                session['jd_text'] = jd_text
-                session['jd_filename'] = jd_filename
-                session['extracted_keywords'] = keywords
-                session['selected_keywords'] = []
-                session['uploaded_resumes'] = []
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    if not keywords_selected:
+        return jsonify({'error': 'No keywords selected'}), 400
 
-        # STEP 2: Select Keywords
-        elif action == 'submit_keywords':
-            selected = request.form.getlist('selected_keywords')
-            manual = request.form.get('manual_keywords', '')
-            manual_keywords = [k.strip() for k in manual.split(',') if k.strip()]
-            all_keywords = sorted(set(selected + manual_keywords))
-            session['selected_keywords'] = all_keywords
+    resumes = request.files.getlist('resume_files')
+    top_n = int(request.form.get('top_n', 5))
+    jd_path = os.path.join(app.config['UPLOAD_FOLDER'], jd_filename)
 
-        # STEP 3: Upload resumes and Analyze
-        elif action == 'analyze':
-            top_n = int(request.form.get('top_n', 0))
-            resume_files = request.files.getlist('resumes')
+    resume_paths = []
+    for resume in resumes:
+        filename = secure_filename(resume.filename)
+        path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        resume.save(path)
+        resume_paths.append(path)
 
-            resume_paths = []
-            for file in resume_files:
-                if file and file.filename:
-                    filename = secure_filename(file.filename)
-                    file_path = os.path.join(UPLOAD_FOLDER, filename)
-                    file.save(file_path)
-                    resume_paths.append(file_path)
+    output_excel, top_results = analyze_resumes(jd_path, resume_paths, keywords_selected, top_n)
 
-            session['uploaded_resumes'] = [os.path.basename(p) for p in resume_paths]
+    results = []
+    for res in top_results:
+        results.append({
+            'Rank': res['Rank'],
+            'Resume': res['Resume'],
+            'Skill Match %': res['Skill Match %'],
+            'JD Match %': res['JD Match %']
+        })
 
-            jd_text = session.get('jd_text', '')
-            selected_keywords = session.get('selected_keywords', [])
+    return jsonify({'results': results, 'excel_file': output_excel})
 
-            if jd_text and selected_keywords and resume_paths:
-                df, excel_path = analyze_resumes(jd_text, resume_paths, selected_keywords, top_n)
-                results_table = df.to_html(classes='table table-bordered result-table', index=False)
-                excel_download = f"/download/{os.path.basename(excel_path)}"
-                session['last_excel'] = os.path.basename(excel_path)
-
-    return render_template(
-        'index.html',
-        jd_filename=session.get('jd_filename'),
-        extracted_keywords=session.get('extracted_keywords', []),
-        selected_keywords=session.get('selected_keywords', []),
-        uploaded_resumes=session.get('uploaded_resumes', []),
-        results_table=results_table,
-        excel_download=excel_download
-    )
-
-@app.route('/download/<filename>')
-def download_file(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+@app.route('/download', methods=['GET'])
+def download():
+    file_path = request.args.get('file')
+    if os.path.exists(file_path):
+        return send_file(file_path, as_attachment=True)
+    return "File not found", 404
 
 if __name__ == '__main__':
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
     app.run(debug=True)
