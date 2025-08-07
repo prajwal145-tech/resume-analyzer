@@ -32,13 +32,21 @@ def extract_text_from_file(file_path):
     return ''
 
 
-def extract_keywords_from_jd(jd_text, top_n=25):
+def extract_keywords_from_jd(jd_text, top_n=50):
     doc = nlp(jd_text)
-    keywords = set()
+    keyword_freq = {}
+    
+    # Count frequency of each keyword
     for token in doc:
         if token.is_alpha and not token.is_stop and token.pos_ in ['NOUN', 'PROPN', 'ADJ']:
-            keywords.add(token.lemma_.lower())
-    return sorted(keywords)[:top_n]
+            lemma = token.lemma_.lower()
+            keyword_freq[lemma] = keyword_freq.get(lemma, 0) + 1
+    
+    # Sort by frequency (most relevant first), then alphabetically for ties
+    sorted_keywords = sorted(keyword_freq.items(), key=lambda x: (-x[1], x[0]))
+    
+    # Return only the keywords (not frequencies), limited to top_n
+    return [kw for kw, freq in sorted_keywords[:top_n]]
 
 
 def analyze_resumes(jd_text, resume_paths, selected_keywords, top_n):
