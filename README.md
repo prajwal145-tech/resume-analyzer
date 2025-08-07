@@ -1,4 +1,4 @@
-🧠 **AI Resume Analyzer**
+**AI Resume Analyzer**
 Intelligent Resume Matching with AI-Powered Skill Analysis
 A sophisticated web application that uses machine learning and natural language processing to analyze and rank resumes against job descriptions. Built with Flask, scikit-learn, and Sentence Transformers for accurate candidate matching.
 ✨ Features
@@ -138,17 +138,6 @@ Similarity Analysis: Computes cosine similarity between job description and resu
 Skill Matching: Performs direct keyword matching for specific skills
 Scoring & Ranking: Combines similarity scores to create final candidate rankings
 
-📁 Project Structure
-resume-analyzer/
-│
-├── app.py                 # Flask web application (main server)
-├── main.py                # Core analysis functions and ML logic
-├── templates/
-│   └── index.html         # Main web interface with interactive UI
-├── uploads/               # Temporary file storage (auto-created)
-├── docs/                  # Documentation and screenshots (optional)
-├── logs/                  # Application logs (auto-created)
-└── README.md              # This documentation
 ⚠️ Important Notes
 🐍 Python Version Compatibility
 
@@ -248,3 +237,4 @@ Community contributors for feedback and improvements
 GitHub will auto-generate URLs you can use in your README
 
 ⭐ Star this repository if you find it helpful!
+
